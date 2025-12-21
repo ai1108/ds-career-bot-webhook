@@ -854,6 +854,10 @@ app.get("/test", (req, res) => {
   res.send("ok");
 });
 
+app.post("/webhook", (req, res) => {
+  console.log("收到任何事件:", req.body);
+  res.sendStatus(200);
+});
 
 
 
