@@ -724,24 +724,27 @@ app.post("/webhook", (req, res) => {
     });
   }
 
-  let reply =
-    getReplyByIntentAndCareer(intentName, career) ||
-    "🧠 我有聽到你的問題～\n" +
-      "📌 你可以跟我說你想走的職位\n" +
-      "🧷 資料分析師\n" +
-      "🧷 商業分析師\n" +
-      "🧷 產品分析師\n" +
-      "🧷 機器學習工程師\n" +
-      "🧷 AI工程師\n" +
-      "🧷 資料工程師\n" +
-      "🧷 資料科學研究員\n" +
-      "🧷 研究所\n" +
-      "✨ 你回一個我就能接著帶你深入聊!!";
+  // ✅ 1️⃣【第一優先】有命中 intent → 一定先回 intent
+  if (intentName && intentToKey[intentName]) {
+    const reply = getReplyByIntentAndCareer(intentName, career);
+    if (reply) {
+      return res.json({ fulfillmentText: reply });
+    }
+  }
 
-  res.json({
-    fulfillmentText: reply
+  // ✅ 2️⃣【第二優先】只有職位，沒有 intent → 才問面向
+  if (career) {
+    return res.json({
+      fulfillmentText: buildAskAspectText(career)
+    });
+  }
+
+  // ✅ 3️⃣ 最後 fallback
+  return res.json({
+    fulfillmentText: "你可以先告訴我你感興趣的職位喔～"
   });
 });
+
 
 
 const PORT = process.env.PORT || 3000;
@@ -749,5 +752,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`DS Career Bot Webhook running on port ${PORT}`);
 });
+
 
 
