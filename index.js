@@ -849,6 +849,10 @@ app.post("/webhook", async (req, res) => {
 });
 
 
+app.get("/test", (req, res) => {
+  console.log("有人訪問 /test");
+  res.send("ok");
+});
 
 
 
