@@ -44,6 +44,29 @@ const intentToKey = {
 /* =========================
    Fallback (缺參數時用)
 ========================= */
+function pickCareerFromContexts(req) {
+  const contexts =
+    req?.body?.queryResult?.outputContexts || [];
+
+  for (const ctx of contexts) {
+    if (
+      ctx.name.includes("career-selected") ||
+      ctx.name.includes("career_detail")
+    ) {
+      const params = ctx.parameters || {};
+
+      return (
+        params.career ||
+        params.career_type ||
+        params.job ||
+        params.position ||
+        null
+      );
+    }
+  }
+  return null;
+}
+
 function buildAskCareerText() {
   return (
     "🧠 你想了解哪一個方向呢～\n" +
@@ -686,7 +709,10 @@ app.get("/", (req, res) => {
 
 app.post("/webhook", (req, res) => {
   const intentName = req?.body?.queryResult?.intent?.displayName;
-  const career = pickCareerFromRequest(req);
+  const career =
+  pickCareerFromRequest(req) ||
+  pickCareerFromContexts(req);
+
 
   // ⭐ 關鍵補救：只有職位、但沒有具體 intent
   if (
@@ -723,4 +749,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`DS Career Bot Webhook running on port ${PORT}`);
 });
+
 
