@@ -813,6 +813,39 @@ app.listen(PORT, () => {
   console.log(`DS Career Bot Webhook running on port ${PORT}`);
 });
 
+// LINE SDK (如果有使用 LINE Messaging API)
+const { Client } = require("@line/bot-sdk");
+const lineClient = new Client({
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.LINE_CHANNEL_SECRET
+});
+
+app.post("/webhook", async (req, res) => {
+  console.log("收到 LINE 訊息:", req.body);
+
+  try {
+    const events = req.body.events || [];
+    for (const event of events) {
+      if (event.type === "message" && event.message.type === "text") {
+        const userMsg = event.message.text;
+        let replyText = buildAskCareerText(); // 暫時回 fallback
+        await lineClient.replyMessage(event.replyToken, {
+          type: "text",
+          text: replyText
+        });
+      }
+    }
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(500);
+  }
+});
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 
 
