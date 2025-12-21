@@ -616,7 +616,7 @@ const replies = {
       "🧷 Python 或 R, 建模與分析的主力\n" +
       "🧷 Jupyter 或 Colab, 實驗與紀錄很方便\n" +
       "🧷 統計與建模套件, 讓你能做更嚴謹的推論\n" +
-      "📌 加分工具\n" +%
+      "📌 加分工具\n" +
       "🧷 MLflow 或 W&B, 實驗追蹤與比較會更有說服力\n" +
       "🧷 文獻管理工具, 讓你能整理研究脈絡並快速寫作\n" +
       "✨ 你把研究紀錄做得越完整, 你的結論就越有可信度～!!",
@@ -812,6 +812,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`DS Career Bot Webhook running on port ${PORT}`);
 });
+
 
 
 
