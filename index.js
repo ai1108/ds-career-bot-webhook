@@ -610,6 +610,20 @@ const replies = {
 /* =========================
    Helpers
 ========================= */
+function buildAskAspectText(career) {
+  const c = normalizeText(career);
+  if (!c) return buildAskCareerText();
+
+  return (
+    `了解～你是對「${c}」有興趣對吧!!\n` +
+    "那你比較想先知道這個職位\n" +
+    "📌 平常在做什麼\n" +
+    "📌 需要具備哪些技能\n" +
+    "📌 或是學習／準備的方向呢？\n" +
+    "✨ 你直接回「工作內容 / 技能 / 學習路線」就可以囉!!"
+  );
+}
+
 function normalizeText(v) {
   if (v === undefined || v === null) return "";
   return String(v).trim();
@@ -674,6 +688,16 @@ app.post("/webhook", (req, res) => {
   const intentName = req?.body?.queryResult?.intent?.displayName;
   const career = pickCareerFromRequest(req);
 
+  // ⭐ 關鍵補救：只有職位、但沒有具體 intent
+  if (
+    career &&
+    (!intentName || !intentToKey[intentName])
+  ) {
+    return res.json({
+      fulfillmentText: buildAskAspectText(career)
+    });
+  }
+
   let reply =
     getReplyByIntentAndCareer(intentName, career) ||
     "🧠 我有聽到你的問題～\n" +
@@ -693,8 +717,10 @@ app.post("/webhook", (req, res) => {
   });
 });
 
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`DS Career Bot Webhook running on port ${PORT}`);
 });
+
