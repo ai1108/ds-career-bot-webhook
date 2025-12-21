@@ -814,11 +814,17 @@ app.listen(PORT, () => {
 });
 
 // LINE SDK (如果有使用 LINE Messaging API)
-const { Client } = require("@line/bot-sdk");
-const lineClient = new Client({
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-  channelSecret: process.env.LINE_CHANNEL_SECRET
+const line = require('@line/bot-sdk');
+
+// 用 process.env 讀取環境變數
+const client = new line.Client({
+  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.CHANNEL_SECRET
 });
+
+// 測試是否讀到
+console.log("Channel Access Token:", process.env.CHANNEL_ACCESS_TOKEN ? "OK" : "Missing");
+console.log("Channel Secret:", process.env.CHANNEL_SECRET ? "OK" : "Missing");
 
 app.post("/webhook", async (req, res) => {
   console.log("收到 LINE 訊息:", req.body);
@@ -841,6 +847,7 @@ app.post("/webhook", async (req, res) => {
     res.sendStatus(500);
   }
 });
+
 
 
 
