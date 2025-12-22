@@ -752,11 +752,24 @@ function inferKeyFromText(text) {
 /* =========================
    Webhook
 ========================= */
+/* =========================
+   基本測試
+========================= */
 app.get("/", (req, res) => {
   res.status(200).send("DS Career Bot Webhook is running");
 });
 
-app.post("/webhook", (req, res) => {
+app.get("/test", (req, res) => {
+  console.log("有人訪問 /test");
+  res.send("ok");
+});
+
+/* =========================
+   Dialogflow Webhook
+========================= */
+app.post("/webhook/dialogflow", (req, res) => {
+  console.log("🤖 收到 Dialogflow Webhook:", JSON.stringify(req.body, null, 2));
+
   let intentName = req?.body?.queryResult?.intent?.displayName;
   const queryText = normalizeText(req?.body?.queryResult?.queryText);
 
@@ -764,28 +777,23 @@ app.post("/webhook", (req, res) => {
     pickCareerFromRequest(req) ||
     pickCareerFromContexts(req);
 
-  // ✅ 如果 Dialogflow 判到 career_overview / fallback，
-  //    但 queryText 裡有職位或面向，我們直接忽略這個 intent，用文字推斷
   if (IGNORE_INTENTS.has(normalizeText(intentName))) {
-    intentName = ""; // 讓下面流程走「補救」而不是被總覽 intent 帶走
+    intentName = "";
   }
 
   const keyByIntent = intentToKey[normalizeText(intentName)];
   const keyByText = inferKeyFromText(queryText);
   const key = keyByIntent || keyByText;
 
-  // ✅ 0️⃣ 只有職位、但沒有面向字 → 問面向
   if (career && !key) {
     return res.json({ fulfillmentText: buildAskAspectText(career) });
   }
 
-  // ✅ 1️⃣【第一優先】有命中 intent → 回 intent（保留原邏輯）
   if (intentName && intentToKey[intentName]) {
     const reply = getReplyByIntentAndCareer(intentName, career);
     if (reply) return res.json({ fulfillmentText: reply });
   }
 
-  // ✅ 2️⃣【補救】intent 沒命中但文字有面向 + 有職位 → 直接回對應內容
   if (career && key && replies[key]) {
     const nc = normalizeCareer(career);
     if (nc && replies[key][nc]) {
@@ -794,72 +802,59 @@ app.post("/webhook", (req, res) => {
     return res.json({ fulfillmentText: fallbackByKey[key] || buildAskCareerText() });
   }
 
-  // ✅ 3️⃣ 只有職位 → 問面向
   if (career) {
     return res.json({ fulfillmentText: buildAskAspectText(career) });
   }
 
-  // ✅ 4️⃣ 只有面向沒有職位 → 叫他選職位
   if (key) {
     return res.json({ fulfillmentText: fallbackByKey[key] || buildAskCareerText() });
   }
 
-  // ✅ 5️⃣ 最後 fallback
   return res.json({ fulfillmentText: "你可以先告訴我你感興趣的職位喔～" });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`DS Career Bot Webhook running on port ${PORT}`);
-});
+/* =========================
+   LINE Webhook
+========================= */
+const line = require("@line/bot-sdk");
 
-// LINE SDK (如果有使用 LINE Messaging API)
-const line = require('@line/bot-sdk');
-
-// 用 process.env 讀取環境變數
-const client = new line.Client({
+const lineClient = new line.Client({
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET
 });
 
-// 測試是否讀到
 console.log("Channel Access Token:", process.env.CHANNEL_ACCESS_TOKEN ? "OK" : "Missing");
 console.log("Channel Secret:", process.env.CHANNEL_SECRET ? "OK" : "Missing");
 
-app.post("/webhook", async (req, res) => {
-  console.log("收到 LINE 訊息:", req.body);
+app.post("/webhook/line", async (req, res) => {
+  console.log("📩 收到 LINE Webhook:", JSON.stringify(req.body, null, 2));
 
   try {
     const events = req.body.events || [];
+
     for (const event of events) {
       if (event.type === "message" && event.message.type === "text") {
         const userMsg = event.message.text;
-        let replyText = buildAskCareerText(); // 暫時回 fallback
+
+        // 這裡先簡單測試
         await lineClient.replyMessage(event.replyToken, {
           type: "text",
-          text: replyText
+          text: `我收到你的訊息了：「${userMsg}」`
         });
       }
     }
+
     res.sendStatus(200);
   } catch (err) {
-    console.error(err);
+    console.error("❌ LINE Webhook Error:", err);
     res.sendStatus(500);
   }
 });
 
-
-app.get("/test", (req, res) => {
-  console.log("有人訪問 /test");
-  res.send("ok");
+/* =========================
+   Server 啟動
+========================= */
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(` DS Career Bot Webhook running on port ${PORT}`);
 });
-
-app.post("/webhook", (req, res) => {
-  console.log("收到任何事件:", req.body);
-  res.sendStatus(200);
-});
-
-
-
-
-
