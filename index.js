@@ -773,27 +773,32 @@ app.post("/webhook/dialogflow", (req, res) => {
   let intentName = req?.body?.queryResult?.intent?.displayName;
   const queryText = normalizeText(req?.body?.queryResult?.queryText);
 
-  const career =
+const career =
     pickCareerFromRequest(req) ||
     pickCareerFromContexts(req);
 
+  // ✅ 如果 Dialogflow 判到 career_overview / fallback，
+  //    但 queryText 裡有職位或面向，我們直接忽略這個 intent，用文字推斷
   if (IGNORE_INTENTS.has(normalizeText(intentName))) {
-    intentName = "";
+    intentName = ""; // 讓下面流程走「補救」而不是被總覽 intent 帶走
   }
 
   const keyByIntent = intentToKey[normalizeText(intentName)];
   const keyByText = inferKeyFromText(queryText);
   const key = keyByIntent || keyByText;
 
+  // ✅ 0️⃣ 只有職位、但沒有面向字 → 問面向
   if (career && !key) {
     return res.json({ fulfillmentText: buildAskAspectText(career) });
   }
 
+  // ✅ 1️⃣【第一優先】有命中 intent → 回 intent（保留原邏輯）
   if (intentName && intentToKey[intentName]) {
     const reply = getReplyByIntentAndCareer(intentName, career);
     if (reply) return res.json({ fulfillmentText: reply });
   }
 
+  // ✅ 2️⃣【補救】intent 沒命中但文字有面向 + 有職位 → 直接回對應內容
   if (career && key && replies[key]) {
     const nc = normalizeCareer(career);
     if (nc && replies[key][nc]) {
@@ -802,48 +807,20 @@ app.post("/webhook/dialogflow", (req, res) => {
     return res.json({ fulfillmentText: fallbackByKey[key] || buildAskCareerText() });
   }
 
+  // ✅ 3️⃣ 只有職位 → 問面向
   if (career) {
     return res.json({ fulfillmentText: buildAskAspectText(career) });
   }
 
+  // ✅ 4️⃣ 只有面向沒有職位 → 叫他選職位
   if (key) {
     return res.json({ fulfillmentText: fallbackByKey[key] || buildAskCareerText() });
   }
 
+  // ✅ 5️⃣ 最後 fallback
   return res.json({ fulfillmentText: "你可以先告訴我你感興趣的職位喔～" });
 });
 
-function getReplyFromDialogflow(req) {
-  let intentName = req?.queryResult?.intent?.displayName;
-  const queryText = normalizeText(req?.queryResult?.queryText);
-
-  const career =
-    pickCareerFromRequest(req) ||
-    pickCareerFromContexts(req);
-
-  if (IGNORE_INTENTS.has(normalizeText(intentName))) {
-    intentName = "";
-  }
-
-  const keyByIntent = intentToKey[normalizeText(intentName)];
-  const keyByText = inferKeyFromText(queryText);
-  const key = keyByIntent || keyByText;
-
-  if (career && !key) return buildAskAspectText(career);
-  if (intentName && intentToKey[intentName]) {
-    const reply = getReplyByIntentAndCareer(intentName, career);
-    if (reply) return reply;
-  }
-  if (career && key && replies[key]) {
-    const nc = normalizeCareer(career);
-    if (nc && replies[key][nc]) return replies[key][nc];
-    return fallbackByKey[key] || buildAskCareerText();
-  }
-  if (career) return buildAskAspectText(career);
-  if (key) return fallbackByKey[key] || buildAskCareerText();
-
-  return "你可以先告訴我你感興趣的職位喔～";
-}
 
 /* =========================
    LINE Webhook
