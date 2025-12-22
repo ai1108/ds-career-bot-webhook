@@ -877,17 +877,3 @@ app.listen(PORT, () => {
   console.log(` DS Career Bot Webhook running on port ${PORT}`);
 });
 
-/* =========================
-   這裡是你的函式、replies、fallbackByKey 定義
-========================= */
-
-// 這裡新增 webhook route
-app.post("/webhook", (req, res) => {
-  console.log("Webhook收到訊息:", req.body);
-
-  const reply = getReplyFromDialogflow(req.body);
-
-  res.json({
-    fulfillmentText: reply
-  });
-});
