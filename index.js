@@ -768,7 +768,7 @@ app.get("/test", (req, res) => {
    Dialogflow Webhook
 ========================= */
 app.post("/webhook/dialogflow", (req, res) => {
-  console.log("🤖 收到 Dialogflow Webhook:", JSON.stringify(req.body, null, 2));
+  console.log("收到 Dialogflow Webhook:", JSON.stringify(req.body, null, 2));
 
   let intentName = req?.body?.queryResult?.intent?.displayName;
   const queryText = normalizeText(req?.body?.queryResult?.queryText);
@@ -813,6 +813,38 @@ app.post("/webhook/dialogflow", (req, res) => {
   return res.json({ fulfillmentText: "你可以先告訴我你感興趣的職位喔～" });
 });
 
+function getReplyFromDialogflow(req) {
+  let intentName = req?.queryResult?.intent?.displayName;
+  const queryText = normalizeText(req?.queryResult?.queryText);
+
+  const career =
+    pickCareerFromRequest(req) ||
+    pickCareerFromContexts(req);
+
+  if (IGNORE_INTENTS.has(normalizeText(intentName))) {
+    intentName = "";
+  }
+
+  const keyByIntent = intentToKey[normalizeText(intentName)];
+  const keyByText = inferKeyFromText(queryText);
+  const key = keyByIntent || keyByText;
+
+  if (career && !key) return buildAskAspectText(career);
+  if (intentName && intentToKey[intentName]) {
+    const reply = getReplyByIntentAndCareer(intentName, career);
+    if (reply) return reply;
+  }
+  if (career && key && replies[key]) {
+    const nc = normalizeCareer(career);
+    if (nc && replies[key][nc]) return replies[key][nc];
+    return fallbackByKey[key] || buildAskCareerText();
+  }
+  if (career) return buildAskAspectText(career);
+  if (key) return fallbackByKey[key] || buildAskCareerText();
+
+  return "你可以先告訴我你感興趣的職位喔～";
+}
+
 /* =========================
    LINE Webhook
 ========================= */
@@ -827,7 +859,7 @@ console.log("Channel Access Token:", process.env.CHANNEL_ACCESS_TOKEN ? "OK" : "
 console.log("Channel Secret:", process.env.CHANNEL_SECRET ? "OK" : "Missing");
 
 app.post("/webhook/line", async (req, res) => {
-  console.log("📩 收到 LINE Webhook:", JSON.stringify(req.body, null, 2));
+  console.log("收到 LINE Webhook:", JSON.stringify(req.body, null, 2));
 
   try {
     const events = req.body.events || [];
@@ -836,10 +868,19 @@ app.post("/webhook/line", async (req, res) => {
       if (event.type === "message" && event.message.type === "text") {
         const userMsg = event.message.text;
 
-        // 這裡先簡單測試
+        // --- 將使用者訊息送到 Dialogflow ---
+        const dialogflowReq = {
+          queryResult: {
+            queryText: userMsg
+          }
+        };
+
+        // 假設你的 getReplyFromDialogflow 函數會回傳 fulfillmentText
+        const fulfillmentText = getReplyFromDialogflow(dialogflowReq);
+
         await lineClient.replyMessage(event.replyToken, {
           type: "text",
-          text: `我收到你的訊息了：「${userMsg}」`
+          text: fulfillmentText
         });
       }
     }
